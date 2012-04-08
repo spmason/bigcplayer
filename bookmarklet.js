@@ -1,0 +1,1 @@
+(function(){var s = document.createElement('script');s.src = 'https://raw.github.com/spmason/bigcplayer/master/src/player.js';document.body.appendChild(s);})();

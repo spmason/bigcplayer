@@ -7,7 +7,7 @@
     ],
         $container, $ul,
         links = [],
-        startIndex = 2,
+        startIndex = 0,
         depsLoaded = 0;
 
     function play(url){
@@ -43,6 +43,7 @@
     }
 
     function loadLinks(doc, index){
+        var linksBefore = links.length;
         doc.find('a[href*="soundcloud.com"]').each(function(){
             var $a = $(this),
                 href = $a.attr('href').toLowerCase(),
@@ -65,7 +66,9 @@
                 fontSize: 11
             });
 
-        loadOtherPages(doc);
+        if(linksBefore < links.length){
+            loadOtherPages(doc);
+        }
     }
 
     function loadOtherPages(doc){
