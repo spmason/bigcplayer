@@ -8,6 +8,7 @@
         $container, $ul,
         links = [],
         startIndex = 0,
+        seenPages = [],
         depsLoaded = 0;
 
     function play(url){
@@ -43,7 +44,6 @@
     }
 
     function loadLinks(doc, index){
-        var linksBefore = links.length;
         doc.find('a[href*="soundcloud.com"]').each(function(){
             var $a = $(this),
                 href = $a.attr('href').toLowerCase(),
@@ -53,11 +53,8 @@
                 return;
             }
             $el = $('<li />').html($('<a/>').attr('href', href).text($a.text()));
-            if(index > startIndex){
-                $ul.append($el);
-            }else{
-                $ul.prepend($el);
-            }
+            $ul.append($el);
+            
             links.push(href);
         });
         $container.find('a')
@@ -66,17 +63,21 @@
                 fontSize: 11
             });
 
-        if(linksBefore < links.length){
-            loadOtherPages(doc);
-        }
+        loadOtherPages(doc);
     }
 
     function loadOtherPages(doc){
         doc.find('#navigation a[href*="page/"]').each(function(){
-            var href = $(this).attr('href');
+            var href = $(this).attr('href'),
+                index = /page\/([0-9]+)$/.exec(href)[1] || 1;
+
+            if(seenPages.indexOf(index) > -1){
+                return;
+            }
+            seenPages.push(index);
 
             $.get(href, function(data){
-                loadLinks($(data), /page\/([0-9]+)$/.exec(href)[1] || 1);
+                loadLinks($(data), index);
             });
         });
     }
