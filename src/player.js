@@ -2,6 +2,8 @@
     'use strict';
     var deps = [
         ["http://code.jquery.com/jquery-1.7.1.min.js", 'jQuery'],
+        ["http://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.3.3/underscore-min.js", "_"],
+        ["http://cdnjs.cloudflare.com/ajax/libs/backbone.js/0.9.2/backbone-min.js", "Backbone"],
         ["https://raw.github.com/soundcloud/Widget-JS-API/master/soundcloud.player.api.js", 'soundcloud'],
         ["https://ajax.googleapis.com/ajax/libs/swfobject/2.2/swfobject.js", 'swfobject']
     ],
@@ -10,6 +12,13 @@
         startIndex = 0,
         seenPages = [],
         depsLoaded = 0;
+
+    function pad(n){
+        if(n < 10){
+            return '0' + n;
+        }
+        return n.toString();
+    }
 
     function play(url){
         var id = "bigcplayer_player",
@@ -43,50 +52,80 @@
         swfobject.embedSWF("http://player.soundcloud.com/player.swf", id, "100%", "81", "9.0.0","expressInstall.swf", flashvars, params, attributes);
     }
 
-    function loadLinks(doc, index){
-        doc.find('a[href*="soundcloud.com"]').each(function(){
+    function loadLinks(doc, collection, index){
+        var i = 0;
+
+        index = index || 1;
+
+        if(index > 5){
+            return;
+        }
+
+        doc.find('a[href*="soundcloud.com"],iframe[src*="soundcloud.com"]').each(function(){
             var $a = $(this),
-                href = $a.attr('href').toLowerCase(),
+                href = ($a.attr('href') || $a.attr('src')).toLowerCase(),
                 $el;
 
-            if(links.indexOf(href) > -1 || href.indexOf('/download') > -1){
+            if(links.indexOf(href) > -1 || href.indexOf('/download') > -1 || href.split('/').length < 5 || !$a.text()){
                 return;
             }
-            $el = $('<li />').html($('<a/>').attr('href', href).text($a.text()));
-            $ul.append($el);
             
+            collection.add({order: pad(index) + '' + pad(i++), href: href, text: $a.text()});
             links.push(href);
         });
-        $container.find('a')
-            .css({
-                color: '#FFF',
-                fontSize: 11
-            });
 
-        loadOtherPages(doc);
+        loadOtherPages(doc, collection);
     }
 
-    function loadOtherPages(doc){
+    function loadOtherPages(doc, collection){
         doc.find('#navigation a[href*="page/"]').each(function(){
             var href = $(this).attr('href'),
                 index = /page\/([0-9]+)$/.exec(href)[1] || 1;
 
-            if(seenPages.indexOf(index) > -1){
+            if(seenPages.indexOf(href) > -1){
                 return;
             }
-            seenPages.push(index);
+            seenPages.push(href);
 
             $.get(href, function(data){
-                loadLinks($(data), index);
+                loadLinks($(data), collection, index);
             });
         });
     }
 
     function go(){
-        $container = $('<div class="bigcplayer"><a href class=toggle>Open Player</a><ul /><div class=player /></div>');
-        $ul = $container.find('ul').css({padding:0,height:80,overflowY:'auto'});
+        var C = Backbone.Collection.extend({
+                comparator: function(m){
+                    return m.get('order');
+                }
+            }),
+            collection = new C();
 
-        loadLinks($('body'));
+        collection.bind('add', function(model, collection){
+            var order = collection.indexOf(model),
+                $a = $('<a/>')
+                    .attr('href', model.get('href'))
+                    .data('order', model.get('order'))
+                    .text(model.get('text')),// + '-' + model.get('order') + '-' + order),
+                $el = $('<li />').html($a),
+                $lis = $ul.find('li');
+
+            if($lis.length){
+                $($lis[order - 1] || $lis[0]).after($el);
+            }else{
+                $ul.append($el);
+            }
+
+            $container.find('a').css({
+                color: '#FFF',
+                fontSize: 11
+            });
+        });
+
+        $container = $('<div class="bigcplayer"><a href class=toggle>Open Player</a><ul /><div class=player /></div>');
+        $ul = $container.find('ul').css({padding:0, height:200, overflowY:'auto'});
+
+        loadLinks($('body'), collection);
 
         $container
             .css({
